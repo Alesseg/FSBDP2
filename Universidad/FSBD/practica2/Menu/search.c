@@ -81,6 +81,7 @@ void    results_search(char * from, char *to, char *date,
     "where   f1.departure_airport = ?\n"
             "and f1.arrival_airport = f2.departure_airport\n"
             "and f2.arrival_airport = ?\n"
+            "and f1.scheduled_arrival <= f2.scheduled_departure\n"
             "and (f2.scheduled_arrival - f1.scheduled_departure) < '24:00:00'\n"
             "and (f2.scheduled_arrival - f1.scheduled_departure) > '00:00:00'\n"
             "and f1.scheduled_departure::date = ?\n"
@@ -140,44 +141,13 @@ void    results_search(char * from, char *to, char *date,
   *n_choices = 0;
   while (SQL_SUCCEEDED(ret = SQLFetch(stmt)) && (*n_choices) < max_rows) {
     snprintf(aux, max_length,
-             "%s\t| %s\t| %s\t| %s\t| %s\t| %s\t| %s",
+             "%s\t%s\t%s\t%s\t%s\t%s\t%s",
              flight_id, code, conexion, dep, arr, asientos, time_elapsed);
     t = strlen(aux)+1;
     strncpy((*choices)[*n_choices], aux, t);
     (*n_choices)++;
   }
 
-/*  
-  char *query_result_set = NULL;
-  if(!(query_result_set = (char *)malloc(sizeof(char) * max_rows)))
-  {
-          "1. Thou shalt have no other gods before me.",
-          "2. Thou shalt not make unto thee any graven image,"
-          " or any likeness of any thing that is in heaven above,"
-          " or that is in the earth beneath, or that is in the water "
-          "under the earth.",
-          "3. Remember the sabbath day, to keep it holy.",
-          "4. Thou shalt not take the name of the Lord thy God in vain.",
-          "5. Honour thy father and thy mother.",
-          "6. Thou shalt not kill.",
-          "7. Thou shalt not commit adultery.",
-          "8. Thou shalt not steal.",
-          "9. Thou shalt not bear false witness against thy neighbor.",
-          "10. Thou shalt not covet thy neighbour's house, thou shalt not"
-          " covet thy neighbour's wife, nor his manservant, "
-          "nor his maidservant, nor his ox, nor his ass, "
-          "nor any thing that is thy neighbour's."
-  };
-
-  *n_choices = sizeof(query_result_set) / sizeof(query_result_set[0]);
-
-  max_rows = MIN(*n_choices, max_rows);
-  for (i = 0 ; i < max_rows ; i++) {
-      t = strlen(query_result_set[i])+1;
-      t = MIN(t, max_length);
-      strncpy((*choices)[i], query_result_set[i], t);
-  }
-*/    
     SQLCloseCursor(stmt);
 
     /* free up statement handle */
@@ -186,4 +156,3 @@ void    results_search(char * from, char *to, char *date,
     /* DISCONNECT */
     ret = odbc_disconnect(env, dbc);
 }
-
