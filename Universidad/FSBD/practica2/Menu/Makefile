@@ -1,5 +1,5 @@
 CC = gcc -g
-CFLAGS = -Wall -Wextra -pedantic -ansi
+CFLAGS = -Wall -Wextra -pedantic -std=c99
 LDLIBS = -lodbc -lcurses -lpanel -lmenu -lform
 
 export PGDATABASE:=flight

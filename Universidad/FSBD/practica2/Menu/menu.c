@@ -28,6 +28,12 @@
 #include <string.h>
 #include "lmenu.h" /* menu.h is a ncurses header */
 
+/**/
+#include <sql.h>
+#include <sqlext.h>
+#include "odbc.h"
+/**/
+
 static void init_struct(_Windows *windows, __attribute__((unused)) _Panels *panels,
                  _Menus *menus, _Forms *forms)
 /** Functions that initialices windows, menus, forms, etc. Note that the initializacion is
@@ -207,14 +213,33 @@ int main() {
     _Menus menus;
     _Forms forms;
 
+    /**/
+    SQLHENV env;
+    SQLHDBC dbc;
+    SQLRETURN ret;
+    /**/
+
     /* copy default values to data structures */
     init_struct(&windows, &panels, &menus, &forms);
 
     /* create windows, menus, panels, etc */
     _initsrc(&windows, &menus, &forms, &panels);
 
+    /**/
+    ret = odbc_connect(&env, &dbc);
+    if (!SQL_SUCCEEDED(ret)) {
+        endwin();
+        fprintf(stderr, "Error al conectar la base de datos\n");
+        return EXIT_FAILURE;
+    }
+    /**/
+
     /* process keyboard */
-    loop(&windows, &menus, &forms, &panels);
+    loop(dbc, &windows, &menus, &forms, &panels);
+
+    /**/
+    odbc_disconnect(env, dbc);
+    /**/
 
     /* free memory */
     free_struct(windows, panels, menus, forms);

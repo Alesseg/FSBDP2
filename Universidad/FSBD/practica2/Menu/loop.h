@@ -9,6 +9,11 @@
 #include "search.h"
 #include "lbpass.h"
 
+/**/
+#include <sql.h>
+#include <sqlext.h>
+/**/
+
 /* menu options */
 #define SEARCH 0
 #define BPASS 1
@@ -17,7 +22,7 @@
 #define FOCUS_LEFT 0
 #define FOCUS_RIGHT 1
 
-void loop(_Windows * windows, _Menus  *menus,
+void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
           _Forms *forms, _Panels *panels);
 
 #endif /* NCOURSES_LOOP_H */
