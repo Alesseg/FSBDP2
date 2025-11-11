@@ -1,0 +1,8 @@
+Probando
+While loop.c
+Entra en results_search
+>> Antes del bucle OK
+-------- Max rows: 30
+>> Final bucle
+>> IF pasado
+Sale de results_search

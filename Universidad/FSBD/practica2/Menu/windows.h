@@ -13,6 +13,8 @@
 #define DEBUG 1
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define TOTAL_ROWS 1024
+#define LENGTH_ROWS 512
 
 typedef struct _Windows {
     WINDOW *menu_win,

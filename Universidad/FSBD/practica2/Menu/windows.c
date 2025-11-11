@@ -3,6 +3,7 @@
  windows related auxiliary functions
 */
 #include "windows.h"
+#include <string.h>
 
 
 static WINDOW *create_newwin(int height, int width, int starty, int startx,
@@ -186,6 +187,8 @@ void write_msg(WINDOW *win, char *msg, int y, int x, char *title)
  * @param y message position (Y)
  */
 {
+    char title1[] = "Flight id(1): Aircraft code(1): Flight id(2): Aircraft code(2): Departure(1):        Arrival(1):          Departure(2):        Arrival(2):";
+    char title2[] = "Flight id:  Aircraft code:  Departure:                Arrival:";
     if (x < 0)
         x = 2;
     if (y < 0)
@@ -193,9 +196,17 @@ void write_msg(WINDOW *win, char *msg, int y, int x, char *title)
     (void) wclear(win);
     /* since we cleared the box we need to repaint it */
     (void) box(win, 0, 0);
-    (void) mvwaddstr(win, 0, 2, title);
+    (void) mvwaddstr(win, 0, 2, title); /* 124 la primera parte */
     /* write message */
-    (void) mvwaddstr(win, y, x, msg);
+    if(!strncmp(msg, title1, 138)) {
+      (void) mvwaddstr(win, 1, 2, title1);
+      (void) mvwaddstr(win, 2, 2, msg + 139);
+    } else if(!strncmp(msg, title2, 62)) {
+      (void) mvwaddstr(win, 1, 2, title2);
+      (void) mvwaddstr(win, 2, 2, msg + 63);
+    } else {
+      (void) mvwaddstr(win, 1, 2, msg);
+    }
     (void) wrefresh(win);
 }
 

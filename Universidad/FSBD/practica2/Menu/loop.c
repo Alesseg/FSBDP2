@@ -59,7 +59,11 @@ char *sql_search = "with 	tabla_1\n"
             "scheduled_departure,\n"
             "scheduled_arrival,\n"
             "asientosvacios,\n"
-            "(scheduled_arrival - scheduled_departure) as time_elapsed\n"
+            "(scheduled_arrival - scheduled_departure) as time_elapsed,\n"
+            "flight_id as flight_id_2,\n"
+		        "scheduled_departure as scheduled_departure_2,\n"
+		        "scheduled_arrival as scheduled_arrival_2,\n"
+            "aircraft_code as aircraft_code_2\n"
     "from	  flights\n"
             "natural join totalfree\n"
     "where   departure_airport = ?\n"
@@ -75,7 +79,11 @@ char *sql_search = "with 	tabla_1\n"
             "f1.scheduled_departure,\n"
             "f2.scheduled_arrival,\n"
             "min(asientosvacios) as asientosvacios,\n"
-            "(f2.scheduled_arrival - f1.scheduled_departure) as time_elapsed\n"
+            "(f2.scheduled_arrival - f1.scheduled_departure) as time_elapsed,\n"
+            "f2.flight_id as flight_id_2,\n"
+		        "f2.scheduled_departure as scheduled_departure_2,\n"
+		        "f1.scheduled_arrival as scheduled_arrival_2,\n"
+            "f2.aircraft_code as aircraft_code_2\n"
     "from    flights f1,\n"
             "flights f2,\n"
             "totalfree tf\n"
@@ -90,15 +98,15 @@ char *sql_search = "with 	tabla_1\n"
               "or\n"
               "tf.flight_id = f2.flight_id)\n"
             "and asientosvacios > 0\n"
-    "group by f1.flight_id,	f1.scheduled_departure, f2.scheduled_arrival),\n"
+    "group by f1.flight_id,	f1.scheduled_departure, f2.scheduled_arrival, f2.flight_id, f2.scheduled_departure, f1.scheduled_arrival, f2.aircraft_code),\n"
     "result\n"
     "as\n"
-            "(SELECT DISTINCT flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed\n"
+            "(SELECT DISTINCT flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed, flight_id_2, scheduled_departure_2, scheduled_arrival_2, aircraft_code_2\n"
             "FROM flight_dir\n"
             "UNION\n"
-            "SELECT DISTINCT flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed\n"
+            "SELECT DISTINCT flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed, flight_id_2, scheduled_departure_2, scheduled_arrival_2, aircraft_code_2\n"
             "FROM flight_sec)\n"
-    "select distinct flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed\n"
+    "select distinct flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed, flight_id_2, scheduled_departure_2, scheduled_arrival_2, aircraft_code_2\n"
     "from result\n"
     "order by time_elapsed;\n";
 
@@ -160,7 +168,7 @@ static void trim_trailing_whitespace(char *str) {
 
 void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
           _Forms *forms, _Panels *panels) {
-    /** get keys pressed by user and process it.
+    /** get keys pressed by user and process it. 
      * - If left/right arrow is pressed  move to
      * the next/previous menu item
      * - If up/down key is pressed check on focus
@@ -186,7 +194,7 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
     int focus = FOCUS_LEFT; /* focus is in win_form/win_out window */
     int ch=0; /* typed character */
     bool enterKey = FALSE; /* has enter been presswed ? */
-    char buffer[128]; /* auxiliary buffer to compose messages */
+    char buffer[1024]; /* auxiliary buffer to compose messages */
     ITEM *auxItem = (ITEM *) NULL; /* item selected in the menu */
     int choice = -1; /* index of the item selected in menu*/
     MENU *menu = NULL; /* pointer to menu in menu_win*/
@@ -196,10 +204,13 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
     char * tmpStr1= NULL; /* used to read values typed in forms */
     char * tmpStr2= NULL; /* used to read values typed in forms */
     char * tmpStr3= NULL; /* used to read values typed in forms */
+    char ** msg_search; /* used to store the message for the first consult */
+    char ** result; /* used to store the resutl of the consult */
     int n_out_choices=0; /* number of printed lines in win_out window */
     int out_highlight = 0; /* line highlighted in win_out window */
     int rows_out_window = 0; /* size of win_out window */
-    int i = 0; /* dummy variable for loops */
+    int start = 0; /* first row to be printed */
+    int i = 0, j = 0; /* dummy variable for loops */
 
     /**/
     SQLHSTMT stmt_search, stmt_bpass_find_pending, stmt_bpass_find_seat, stmt_bpass_insert, stmt_bpass_get_departure;
@@ -214,7 +225,9 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
     rows_out_window = windows->terminal_nrows - 2 * windows->height_menu_win - 1;
 
     /**/
-
+    FILE *f;
+    f = fopen("probando.txt", "w");
+    fprintf(f, "Probando\n");
     /*Preparamos statements (solo una vez)*/
 
     ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt_search);
@@ -251,6 +264,31 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
         write_msg(msg_win, "Error preparando sql_bpass_get_departure", -1, -1, windows->msg_title);
         return;
     }
+
+    /* Alloc memory for the consult 1 message */
+    if(!(msg_search = (char **)malloc(sizeof(char *) * (TOTAL_ROWS)))) {
+      return;
+    }
+    for(i = 0; i < TOTAL_ROWS ; i++) {
+      if(!(msg_search[i] = (char *)malloc(sizeof(char) * (LENGTH_ROWS+1)))) {
+        for(j = i; j >= 0 ;j--) {
+          free(msg_search[j]);
+        }
+        free(msg_search);
+      }
+    }
+    if(!(result = (char **)malloc(sizeof(char *) * (TOTAL_ROWS)))) {
+      return;
+    }
+    for(i = 0; i < TOTAL_ROWS ; i++) {
+      if(!(result[i] = (char *)malloc(sizeof(char) * (LENGTH_ROWS+1)))) {
+        for(j = i; j >= 0 ;j--) {
+          free(result[j]);
+        }
+        free(msg_search);
+      }
+    }
+    fprintf(f, "While loop.c\n");
 
     /**/
 
@@ -365,7 +403,38 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 auxItem = current_item(menu);
                 choice = item_index(auxItem);
                 enterKey = (bool) TRUE; /* mark enter pressed */
+                start = 0;
                 break;
+            /* Next page */
+            case 0x2E: /* . */
+              start = +windows->rows_out_win-2;
+              (void)wclear(out_win); /* Clear window */
+              (void)form_driver(forms->search_form, REQ_VALIDATION);
+              /* Copy the rows from result starting from the start row*/
+              i = 0;
+              while(i < windows->rows_out_win-2 && i < TOTAL_ROWS) {
+                j = strlen((result)[i + start])+1;
+                j = MIN(j, windows->rows_out_win-2);
+                strncpy((menus->out_win_choices)[i], (result)[i + start], j);
+                i++;
+              }
+              print_out(out_win, menus->out_win_choices, n_out_choices, out_highlight, windows->out_title);
+              break;
+            /* Previous page*/
+            case 0x2C: /* , */
+              start = -windows->rows_out_win-2;
+              if(start < 0) start = 0;
+              (void)wclear(out_win);
+              (void)form_driver(forms->search_form, REQ_VALIDATION);
+              i = 0;
+              while(i < windows->rows_out_win-2 && i < TOTAL_ROWS) {
+                j = strlen((result)[i + start])+1;
+                j = MIN(j, windows->rows_out_win-2);
+                strncpy((menus->out_win_choices)[i], (result)[i + start], j);
+                i++;
+              }
+              print_out(out_win, menus->out_win_choices, n_out_choices, out_highlight, windows->out_title);
+              break;
             default: /* echo pressed key */
                 auxItem = current_item(menu);
                 if (item_index(auxItem) == SEARCH) {
@@ -395,18 +464,29 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 trim_trailing_whitespace(tmpStr1);
                 trim_trailing_whitespace(tmpStr2);
                 trim_trailing_whitespace(tmpStr3);
+                fprintf(f, "Entra en results_search\n");
+                fclose(f);
                 results_search(stmt_search, tmpStr1, tmpStr2, tmpStr3, &n_out_choices, & (menus->out_win_choices),
-                               windows->cols_out_win-4, windows->rows_out_win-2);
+                               windows->cols_out_win-4, windows->rows_out_win-2, &msg_search, &result);
+                f = fopen("probando.txt", "a");
+                fprintf(f, "Sale de results_search\n");
                 print_out(out_win, menus->out_win_choices, n_out_choices,
                           out_highlight, windows->out_title);
-                if ((bool)DEBUG) {
-                    (void)snprintf(buffer, 128, "arg1=%s, arg2=%s, arg3=%s",  tmpStr1, tmpStr2, tmpStr3);
-                    write_msg(msg_win, buffer, -1, -1, windows->msg_title);
+                if (!strcmp((menus->out_win_choices)[out_highlight], "No se encontraron vuelos para esa ruta y fecha.") || !strcmp((menus->out_win_choices)[out_highlight], "Error: No se encontraron vuelos.")) {
+                  (void)snprintf(buffer, 128, "%s", (menus->out_win_choices)[out_highlight] );
+                } else if((bool)DEBUG) {
+                  (void)snprintf(buffer, 128, "Origen: %s  |  Destino: %s  |  Fecha: %s",  tmpStr1, tmpStr2, tmpStr3);
                 }
+                write_msg(msg_win, buffer, -1, -1, windows->msg_title);
 
             }
             else if ((choice == SEARCH) && (focus == FOCUS_RIGHT)) {
-                (void)snprintf(buffer, 128, "msg=%s", (menus->out_win_choices)[out_highlight] );
+                /* Print the message */
+                if(!strcmp((menus->out_win_choices)[out_highlight], "No se encontraron vuelos para esa ruta y fecha.") || !strcmp((menus->out_win_choices)[out_highlight], "Error: No se encontraron vuelos.")) {
+                  (void)snprintf(buffer, 128, "%s", (menus->out_win_choices)[out_highlight] );
+                } else {
+                  (void)snprintf(buffer, LENGTH_ROWS, "%s", msg_search[out_highlight]);
+                }
                 write_msg(msg_win,buffer,
                           -1, -1, windows->msg_title);
             }
@@ -441,4 +521,14 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
     SQLFreeHandle(SQL_HANDLE_STMT, stmt_bpass_find_seat);
     SQLFreeHandle(SQL_HANDLE_STMT, stmt_bpass_insert);
     SQLFreeHandle(SQL_HANDLE_STMT, stmt_bpass_get_departure);
+    /* Free message */
+    for(i = 0; i < TOTAL_ROWS ; i++) {
+      free(msg_search[i]);
+    }
+    free(msg_search);
+    for(i = 0; i < TOTAL_ROWS ; i++) {
+      free(result[i]);
+    }
+    free(result);
+    fclose(f);
 }

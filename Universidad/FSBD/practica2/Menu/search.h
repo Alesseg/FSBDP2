@@ -16,6 +16,6 @@
 /*stmt como primer parámetro*/
 
 void results_search(SQLHSTMT stmt, char * from, char *to, char *date, int * n_choices,
-                    char *** choices, int max_length, int max_rows);
+                    char *** choices, int max_length, int max_rows, char *** msg, char ***result);
 
 #endif /*NCOURSES_SEARCH_H*/
