@@ -168,6 +168,7 @@ static void trim_trailing_whitespace(char *str) {
 
 /**
  * @brief Clear the rows of the array result
+ * @author Alejandro Seguido Griñón
  * 
  * @param result pointer to the array
  * @param nrows number of rows to clean
