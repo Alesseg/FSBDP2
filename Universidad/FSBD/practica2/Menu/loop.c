@@ -166,6 +166,24 @@ static void trim_trailing_whitespace(char *str) {
     }
 }
 
+/**
+ * @brief Clear the rows of the array result
+ * 
+ * @param result pointer to the array
+ * @param nrows number of rows to clean
+ */
+void clear_result(char *** result, int nrows) {
+  int i = 0;
+
+  if(!result || nrows <= 0) return;
+
+  for (i = 0; i < nrows ; i++) {
+    if ((*result)[i]) {
+        (*result)[i][0] = '\0';
+    }
+  }
+}
+
 void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
           _Forms *forms, _Panels *panels) {
     /** get keys pressed by user and process it. 
@@ -210,7 +228,9 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
     int out_highlight = 0; /* line highlighted in win_out window */
     int rows_out_window = 0; /* size of win_out window */
     int start = 0; /* first row to be printed */
+    int rows_result = 0; /* Rows from the result */
     int i = 0, j = 0; /* dummy variable for loops */
+    int temp = 0; /* dummy variable  for temporary storage */
 
     /**/
     SQLHSTMT stmt_search, stmt_bpass_find_pending, stmt_bpass_find_seat, stmt_bpass_insert, stmt_bpass_get_departure;
@@ -225,9 +245,6 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
     rows_out_window = windows->terminal_nrows - 2 * windows->height_menu_win - 1;
 
     /**/
-    FILE *f;
-    f = fopen("probando.txt", "w");
-    fprintf(f, "Probando\n");
     /*Preparamos statements (solo una vez)*/
 
     ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt_search);
@@ -288,7 +305,6 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
         free(msg_search);
       }
     }
-    fprintf(f, "While loop.c\n");
 
     /**/
 
@@ -363,7 +379,7 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                     (void) form_driver(forms->bpass_form, REQ_END_LINE);
                     (void) wrefresh(windows->form_bpass_win);
                 } else if (focus == FOCUS_RIGHT){
-                    out_highlight = MIN(out_highlight + 1, n_out_choices-1);
+                    out_highlight = MIN(out_highlight + 1, n_out_choices - 1);
                     print_out(out_win, menus->out_win_choices, n_out_choices,
                               out_highlight, windows->out_title);
                 }
@@ -403,38 +419,71 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 auxItem = current_item(menu);
                 choice = item_index(auxItem);
                 enterKey = (bool) TRUE; /* mark enter pressed */
-                start = 0;
                 break;
-            /* Next page */
-            case 0x2E: /* . */
-              start = +windows->rows_out_win-2;
-              (void)wclear(out_win); /* Clear window */
-              (void)form_driver(forms->search_form, REQ_VALIDATION);
-              /* Copy the rows from result starting from the start row*/
-              i = 0;
-              while(i < windows->rows_out_win-2 && i < TOTAL_ROWS) {
-                j = strlen((result)[i + start])+1;
-                j = MIN(j, windows->rows_out_win-2);
-                strncpy((menus->out_win_choices)[i], (result)[i + start], j);
-                i++;
+
+
+            case KEY_NPAGE: /* next-page key */
+              temp = start;
+              start = MIN(start + (windows->rows_out_win)-2, TOTAL_ROWS - 1);
+              /* If there is info in the next page, go to the next page */
+              if(start < rows_result) {
+                out_highlight = 0;
+                (void)wclear(out_win); /* Clear window */
+                (void)form_driver(forms->search_form, REQ_VALIDATION);
+                /* Copy the rows from result starting from the start row */
+                n_out_choices = 0;
+                i=0;
+                while(i < (windows->rows_out_win-2) && (i + start) < TOTAL_ROWS && (n_out_choices + start < rows_result)) {
+                  j = strlen((result)[i + start])+1;
+                  j = MIN(j, windows->rows_out_win-2);
+                  strncpy((menus->out_win_choices)[i], (result)[i + start], j);
+                  n_out_choices++;
+                  i++;
+                }
+                /* Fill with blank spaces */
+                while (i < (windows->rows_out_win-2) && (i + start) < TOTAL_ROWS) {
+                  strncpy((menus->out_win_choices)[i], "", windows->rows_out_win-2);
+                  i++;
+                }
+                /* Print the result */
+                print_out(out_win, menus->out_win_choices, n_out_choices, out_highlight, windows->out_title);
+              } else {
+                start = temp;
               }
-              print_out(out_win, menus->out_win_choices, n_out_choices, out_highlight, windows->out_title);
               break;
-            /* Previous page*/
-            case 0x2C: /* , */
-              start = -windows->rows_out_win-2;
-              if(start < 0) start = 0;
-              (void)wclear(out_win);
-              (void)form_driver(forms->search_form, REQ_VALIDATION);
-              i = 0;
-              while(i < windows->rows_out_win-2 && i < TOTAL_ROWS) {
-                j = strlen((result)[i + start])+1;
-                j = MIN(j, windows->rows_out_win-2);
-                strncpy((menus->out_win_choices)[i], (result)[i + start], j);
-                i++;
+              
+            case KEY_PPAGE: /* previous-page key */
+              temp = start;
+              start = MAX(start-windows->rows_out_win-2, 0);
+              /* 
+              Update the window if there are rows to print
+              The error message is removed if you don't take that into account
+              */
+              if(rows_result > 0) {
+                out_highlight = 0;
+                (void)wclear(out_win); /* Clear window */
+                (void)form_driver(forms->search_form, REQ_VALIDATION);
+                /* Copy the rows from result starting from the start row */
+                n_out_choices = 0;
+                i=0;
+                while(i < (windows->rows_out_win-2) && (i + start) < TOTAL_ROWS && (n_out_choices + start < rows_result)) {
+                  j = strlen((result)[i + start])+1;
+                  j = MIN(j, windows->rows_out_win-2);
+                  strncpy((menus->out_win_choices)[i], (result)[i + start], j);
+                  n_out_choices++;
+                  i++;
+                }
+                /* Fill with blank spaces */
+                while (i < (windows->rows_out_win-2) && (i + start) < TOTAL_ROWS) {
+                  strncpy((menus->out_win_choices)[i], "", windows->rows_out_win-2);
+                  i++;
+                }
+                print_out(out_win, menus->out_win_choices, n_out_choices, out_highlight, windows->out_title);
+              } else {
+                start = temp;
               }
-              print_out(out_win, menus->out_win_choices, n_out_choices, out_highlight, windows->out_title);
               break;
+
             default: /* echo pressed key */
                 auxItem = current_item(menu);
                 if (item_index(auxItem) == SEARCH) {
@@ -454,6 +503,9 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 break; /* quit */
             else if ((choice == SEARCH) && (focus == FOCUS_LEFT)) {
                 out_highlight = 0;
+                start = 0;
+                rows_out_window = 0;
+                clear_result(&result, rows_result); /* Clean the content of result */
                 for(i=0; i< rows_out_window ; i++)
                     (menus->out_win_choices)[i][0] = '\0';
                 (void)wclear(out_win);
@@ -464,12 +516,8 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 trim_trailing_whitespace(tmpStr1);
                 trim_trailing_whitespace(tmpStr2);
                 trim_trailing_whitespace(tmpStr3);
-                fprintf(f, "Entra en results_search\n");
-                fclose(f);
                 results_search(stmt_search, tmpStr1, tmpStr2, tmpStr3, &n_out_choices, & (menus->out_win_choices),
-                               windows->cols_out_win-4, windows->rows_out_win-2, &msg_search, &result);
-                f = fopen("probando.txt", "a");
-                fprintf(f, "Sale de results_search\n");
+                               windows->cols_out_win-4, windows->rows_out_win-2, &msg_search, &result, &rows_result);
                 print_out(out_win, menus->out_win_choices, n_out_choices,
                           out_highlight, windows->out_title);
                 if (!strcmp((menus->out_win_choices)[out_highlight], "No se encontraron vuelos para esa ruta y fecha.") || !strcmp((menus->out_win_choices)[out_highlight], "Error: No se encontraron vuelos.")) {
@@ -485,13 +533,16 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 if(!strcmp((menus->out_win_choices)[out_highlight], "No se encontraron vuelos para esa ruta y fecha.") || !strcmp((menus->out_win_choices)[out_highlight], "Error: No se encontraron vuelos.")) {
                   (void)snprintf(buffer, 128, "%s", (menus->out_win_choices)[out_highlight] );
                 } else {
-                  (void)snprintf(buffer, LENGTH_ROWS, "%s", msg_search[out_highlight]);
+                  (void)snprintf(buffer, LENGTH_ROWS, "%s", msg_search[out_highlight + start]);
                 }
                 write_msg(msg_win,buffer,
                           -1, -1, windows->msg_title);
             }
             else if ((choice == BPASS) && (focus == FOCUS_LEFT)) {
                 out_highlight = 0;
+                start = 0;
+                rows_result = 0;
+                clear_result(&result, rows_result); /* Clean the content of result */
                 for(i=0; i< rows_out_window ; i++)
                     (menus->out_win_choices)[i][0] = '\0';
                 (void) wclear(out_win);
@@ -504,10 +555,16 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                               stmt_bpass_insert, 
                               stmt_bpass_get_departure,
                               tmpStr1, &n_out_choices, & (menus->out_win_choices),
-                              windows->cols_out_win-4, windows->rows_out_win-2);
+                              windows->cols_out_win-4, windows->rows_out_win-2,
+                              &result, &rows_result);
                 print_out(out_win, menus->out_win_choices, n_out_choices,
                           out_highlight, windows->out_title);
-            }
+                if (!strncmp((menus->out_win_choices)[out_highlight], "Error:", 6)) {
+                  (void)snprintf(buffer, 128, "%s", (menus->out_win_choices)[out_highlight] );
+                  write_msg(msg_win, (menus->out_win_choices)[out_highlight],
+                            -1, -1, windows->msg_title);
+                }
+            }    
             else if ((choice == BPASS) && focus == (FOCUS_RIGHT)) {
                 write_msg(msg_win, (menus->out_win_choices)[out_highlight],
                           -1, -1, windows->msg_title);
@@ -530,5 +587,4 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
       free(result[i]);
     }
     free(result);
-    fclose(f);
 }

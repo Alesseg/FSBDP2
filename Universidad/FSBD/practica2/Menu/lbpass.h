@@ -20,6 +20,7 @@ void results_bpass(SQLHDBC dbc,
                    SQLHSTMT stmt_insert,
                    SQLHSTMT stmt_get_departure,
                    char * bookID, int * n_choices,
-                   char *** choices, int max_length, int max_rows);
+                   char *** choices, int max_length, int max_rows,
+                   char *** result, int * rows_result);
 
 #endif /*NCOURSES_BPASS_H */

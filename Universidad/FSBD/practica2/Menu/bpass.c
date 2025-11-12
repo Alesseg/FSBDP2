@@ -18,7 +18,9 @@ void    results_bpass(SQLHDBC dbc,
                        char * bookID,
                        int * n_choices, char *** choices,
                        int max_length,
-                       int max_rows)
+                       int max_rows,
+                       char *** result,
+                       int * rows_result)
 /**here you need to do your query and fill the choices array of strings
 *
 * @param bookID  form field bookId
@@ -47,8 +49,9 @@ void    results_bpass(SQLHDBC dbc,
     /* Variables para Q4 (Get Departure) */
     SQLCHAR scheduled_departure[64];
 
-    /**/
+    /* Initialice to 0 the number fo rows from the result */
     *n_choices = 0;
+    *rows_result = 0;
     /**/
 
     /* Copiar el bookID (con padding si es necesario) */
@@ -171,15 +174,24 @@ void    results_bpass(SQLHDBC dbc,
                  (char*)scheduled_departure);
         
         t = strlen(aux)+1;
-        strncpy((*choices)[*n_choices], aux, t);
-        (*n_choices)++;
+        strncpy((*result)[*rows_result], aux, t);
+        (*rows_result)++;
 
     } /* --- Fin del bucle principal (SQLFetch de Q1) --- */
-
+    
+    /* Print the result into the choices array */
+    (*n_choices) = 0;
+    while((*n_choices) < (*rows_result) && (*n_choices) < max_rows && (*n_choices) < TOTAL_ROWS) {
+      t = strlen((*result)[(*n_choices)])+1;
+      t = MIN(t, max_length);
+      strncpy((*choices)[(*n_choices)], (*result)[(*n_choices)], t);
+      (*n_choices)++;
+    }
+    
     SQLCloseCursor(stmt_find_pending); /* Cerrar cursor de Q1 */
 
     if (*n_choices == 0) {
-        set_ncurses_error(n_choices, choices, "No hay tarjetas de embarque pendientes para esa reserva.", max_length);
+        set_ncurses_error(n_choices, choices, "Error: No hay tarjetas de embarque pendientes para esa reserva.", max_length);
     }
 
     /* --- FIN DE LA TRANSACCIÓN --- */

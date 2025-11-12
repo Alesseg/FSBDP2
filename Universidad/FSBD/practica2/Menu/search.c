@@ -13,7 +13,8 @@ void    results_search(SQLHSTMT stmt, char * from, char *to, char *date,
                        int max_length,
                        int max_rows,
                        char *** msg,
-                       char ***result)
+                       char ***result,
+                       int *rows_result)
 /** here you need to do your query and fill the choices array of strings
  *
  * @param from form field from
@@ -26,7 +27,7 @@ void    results_search(SQLHSTMT stmt, char * from, char *to, char *date,
   */
 {
   SQLRETURN ret; /* ODBC API return status */
-  int t, i;
+  int t = 0;
   char aux[1024];
   char from_param[4], to_param[4], date_param[11];
 
@@ -38,8 +39,6 @@ void    results_search(SQLHSTMT stmt, char * from, char *to, char *date,
   SQLINTEGER asientosvacios;
   SQLCHAR    time_elapsed[32];
 
-  FILE *f;
-  f = fopen("probando.txt", "a");
 
   strncpy(from_param, from, 3);
   from_param[3] = '\0';
@@ -79,10 +78,8 @@ void    results_search(SQLHSTMT stmt, char * from, char *to, char *date,
   /* Loop through the rows in the result-set */
   /* Go to the starting row of the result wanted */
   *n_choices = 0;
-  i = 0;
-  fprintf(f, ">> Antes del bucle OK\n-------- Max rows: %d\n", max_rows);
-  fclose(f);
-  while (SQL_SUCCEEDED(ret = SQLFetch(stmt)) && i < TOTAL_ROWS) {
+  (*rows_result) = 0;
+  while (SQL_SUCCEEDED(ret = SQLFetch(stmt)) && (*rows_result) < TOTAL_ROWS) {
       
       snprintf(aux, max_length, "%-6d %-4s %-2d %-25s %-25s %-4d %-10s",
                 (int)flight_id_1,
@@ -96,7 +93,7 @@ void    results_search(SQLHSTMT stmt, char * from, char *to, char *date,
 
     t = strlen(aux)+1;
     t = MIN(t, max_length);
-    strncpy((*result)[i], aux, t);
+    strncpy((*result)[(*rows_result)], aux, t);
       
     if(conexion == 1) {
       snprintf(aux, LENGTH_ROWS, "Flight id(1): Aircraft code(1): Flight id(2): Aircraft code(2): Departure(1):        Arrival(1):          Departure(2):        Arrival(2): %-13d %-17s %-13d %-17s %-20s %-20s %-20s %-20s", 
@@ -116,24 +113,16 @@ void    results_search(SQLHSTMT stmt, char * from, char *to, char *date,
                 (char*)scheduled_arrival_1);
     }
     
-    strncpy((*msg)[i], aux, strlen(aux)+1);
-    if((*n_choices) < max_rows) (*n_choices)++;
-    i++;
+    strncpy((*msg)[(*rows_result)], aux, strlen(aux)+1);
+    (*rows_result)++;
   }
-  i = 0;
-  while(i < max_rows && i < TOTAL_ROWS) {
-    t = strlen((*result)[i])+1;
+  (*n_choices) = 0;
+  while((*n_choices) < (*rows_result) && (*n_choices) < max_rows && (*n_choices) < TOTAL_ROWS) {
+    t = strlen((*result)[(*n_choices)])+1;
     t = MIN(t, max_length);
-    strncpy((*choices)[i], (*result)[i], t);
-    i++;
+    strncpy((*choices)[(*n_choices)], (*result)[(*n_choices)], t);
+    (*n_choices)++;
   }
-
-  f = fopen("probando.txt", "a");
-  fprintf(f, ">> Final bucle\n");
-  fclose(f);
-  if((*n_choices) >= max_rows) *n_choices = max_rows;
-  f = fopen("probando.txt", "a");
-  fprintf(f, ">> IF pasado\n");
 
   if (*n_choices == 0) {
       strncpy((*choices)[0], "No se encontraron vuelos para esa ruta y fecha.", max_length);
@@ -141,6 +130,5 @@ void    results_search(SQLHSTMT stmt, char * from, char *to, char *date,
   }
 
   SQLCloseCursor(stmt);
-  fclose(f);
 }
 
