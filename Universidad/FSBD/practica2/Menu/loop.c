@@ -488,9 +488,7 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 n_out_choices = 0;
                 i=0;
                 while(i < (windows->rows_out_win-2) && (i + start) < TOTAL_ROWS && (n_out_choices + start < rows_result)) {
-                  j = strlen((result)[i + start])+1;
-                  j = MIN(j, windows->rows_out_win-2);
-                  strncpy((menus->out_win_choices)[i], (result)[i + start], j);
+                  strncpy((menus->out_win_choices)[i], (result)[i + start], strlen((result)[i + start])+1);
                   n_out_choices++;
                   i++;
                 }
@@ -508,7 +506,7 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
               
             case KEY_PPAGE: /* previous-page key */
               temp = start;
-              start = MAX(start-windows->rows_out_win-2, 0);
+              start = MAX(start - (windows->rows_out_win-2), 0);
               /* 
               Update the window if there are rows to print
               The error message is removed if you don't take that into account
@@ -521,8 +519,6 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 n_out_choices = 0;
                 i=0;
                 while(i < (windows->rows_out_win-2) && (i + start) < TOTAL_ROWS && (n_out_choices + start < rows_result)) {
-                  j = strlen((result)[i + start])+1;
-                  j = MIN(j, windows->rows_out_win-2);
                   strncpy((menus->out_win_choices)[i], (result)[i + start], j);
                   n_out_choices++;
                   i++;
