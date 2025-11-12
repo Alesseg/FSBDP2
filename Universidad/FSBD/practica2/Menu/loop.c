@@ -29,86 +29,141 @@
 /**/
 #include "odbc.h"
 
-/* Query 1 (Search): Completa, con 6 parámetros */
-char *sql_search = "with 	tabla_1\n"
-    "AS (SELECT flight_id,\n"
-                "Count (flight_id) AS n_people\n"
-        "FROM   boarding_passes\n"
-        "GROUP  BY flight_id),\n"
-      "totalPeople\n"
-    "AS (SELECT f.flight_id,\n"
-                "COALESCE(n_people, 0) AS numpeople\n"
-        "FROM   flights f\n"
-                "LEFT JOIN tabla_1 t\n"
-                      "ON f.flight_id = t.flight_id),\n"
-      "totalSeats\n"
-    "AS (SELECT aircraft_code,\n"
-                "Count (seat_no) AS numseats\n"
-        "FROM   seats\n"
-        "GROUP  BY aircraft_code),\n"
-      "totalfree\n"
-    "AS (SELECT flight_id,\n"
-                "( numseats - numpeople ) AS asientosvacios\n"
-        "FROM   totalPeople\n"
-                "natural JOIN flights\n"
-                "natural JOIN totalSeats),\n"
-  "flight_dir \n"
-  "as   (select distinct flight_id,\n"
-            "aircraft_code,\n"
-            "0 as conexion,\n"
-            "scheduled_departure,\n"
-            "scheduled_arrival,\n"
-            "asientosvacios,\n"
-            "(scheduled_arrival - scheduled_departure) as time_elapsed,\n"
-            "flight_id as flight_id_2,\n"
-		        "scheduled_departure as scheduled_departure_2,\n"
-		        "scheduled_arrival as scheduled_arrival_2,\n"
-            "aircraft_code as aircraft_code_2\n"
-    "from	  flights\n"
-            "natural join totalfree\n"
-    "where   departure_airport = ?\n"
-            "and arrival_airport = ?\n"
-            "and (scheduled_arrival - scheduled_departure) < '24:00:00'\n"
-            "and scheduled_departure::date = ?\n"
-            "and asientosvacios > 0\n"
-    "),\n"
-        "flight_sec\n"
-        "as   (select distinct f1.flight_id,\n"
-            "f1.aircraft_code,\n"
-            "1 as conexion,\n"
-            "f1.scheduled_departure,\n"
-            "f2.scheduled_arrival,\n"
-            "min(asientosvacios) as asientosvacios,\n"
-            "(f2.scheduled_arrival - f1.scheduled_departure) as time_elapsed,\n"
-            "f2.flight_id as flight_id_2,\n"
-		        "f2.scheduled_departure as scheduled_departure_2,\n"
-		        "f1.scheduled_arrival as scheduled_arrival_2,\n"
-            "f2.aircraft_code as aircraft_code_2\n"
-    "from    flights f1,\n"
-            "flights f2,\n"
-            "totalfree tf\n"
-    "where   f1.departure_airport = ?\n"
-            "and f1.arrival_airport = f2.departure_airport\n"
-            "and f2.arrival_airport = ?\n"
-            "and f1.scheduled_arrival <= f2.scheduled_departure\n"
-            "and (f2.scheduled_arrival - f1.scheduled_departure) < '24:00:00'\n"
-            "and (f2.scheduled_arrival - f1.scheduled_departure) > '00:00:00'\n"
-            "and f1.scheduled_departure::date = ?\n"
-            "and 	(tf.flight_id = f1.flight_id\n"
-              "or\n"
-              "tf.flight_id = f2.flight_id)\n"
-            "and asientosvacios > 0\n"
-    "group by f1.flight_id,	f1.scheduled_departure, f2.scheduled_arrival, f2.flight_id, f2.scheduled_departure, f1.scheduled_arrival, f2.aircraft_code),\n"
-    "result\n"
-    "as\n"
-            "(SELECT DISTINCT flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed, flight_id_2, scheduled_departure_2, scheduled_arrival_2, aircraft_code_2\n"
-            "FROM flight_dir\n"
-            "UNION\n"
-            "SELECT DISTINCT flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed, flight_id_2, scheduled_departure_2, scheduled_arrival_2, aircraft_code_2\n"
-            "FROM flight_sec)\n"
-    "select distinct flight_id, aircraft_code, conexion, scheduled_departure, scheduled_arrival, asientosvacios, time_elapsed, flight_id_2, scheduled_departure_2, scheduled_arrival_2, aircraft_code_2\n"
-    "from result\n"
-    "order by time_elapsed;\n";
+/* 
+ * Consulta 1 (Search): Completa, con 6 parámetros
+ *
+ * Descripción general:
+ * Esta consulta obtiene los vuelos (directos o con conexión) que cumplen las 
+ * condiciones especificadas por el usuario. 
+ * 
+ * Se utilizan varias subconsultas (CTE) encadenadas mediante la cláusula WITH 
+ * para calcular asientos ocupados, asientos totales, asientos libres y 
+ * posteriormente los vuelos directos y los vuelos con conexión.
+ */
+
+char *sql_search =
+"WITH \n"
+/* 
+ * tabla_1: Cuenta el número de pasajeros por vuelo
+ */
+"tabla_1 AS (\n"
+"    SELECT flight_id,\n"
+"           COUNT(flight_id) AS n_people\n"
+"    FROM boarding_passes\n"
+"    GROUP BY flight_id\n"
+"),\n"
+
+/* 
+ * totalPeople: Une todos los vuelos con la tabla anterior
+ * para obtener el número total de pasajeros por vuelo (0 si no hay pasajeros)
+ */
+"totalPeople AS (\n"
+"    SELECT f.flight_id,\n"
+"           COALESCE(n_people, 0) AS numpeople\n"
+"    FROM flights f\n"
+"    LEFT JOIN tabla_1 t ON f.flight_id = t.flight_id\n"
+"),\n"
+
+/*
+ * totalSeats: Calcula el número total de asientos por tipo de aeronave
+ */
+"totalSeats AS (\n"
+"    SELECT aircraft_code,\n"
+"           COUNT(seat_no) AS numseats\n"
+"    FROM seats\n"
+"    GROUP BY aircraft_code\n"
+"),\n"
+
+/*
+ * totalfree: Calcula los asientos vacíos por vuelo
+ */
+"totalfree AS (\n"
+"    SELECT flight_id,\n"
+"           (numseats - numpeople) AS asientosvacios\n"
+"    FROM totalPeople\n"
+"    NATURAL JOIN flights\n"
+"    NATURAL JOIN totalSeats\n"
+"),\n"
+
+/*
+ * flight_dir: Selecciona los vuelos directos que cumplen las condiciones.
+ * Se filtra por aeropuertos de salida/llegada, fecha y duración < 24h.
+ */
+"flight_dir AS (\n"
+"    SELECT DISTINCT flight_id,\n"
+"                    aircraft_code,\n"
+"                    0 AS conexion,\n"
+"                    scheduled_departure,\n"
+"                    scheduled_arrival,\n"
+"                    asientosvacios,\n"
+"                    (scheduled_arrival - scheduled_departure) AS time_elapsed,\n"
+"                    flight_id AS flight_id_2,\n"
+"                    scheduled_departure AS scheduled_departure_2,\n"
+"                    scheduled_arrival AS scheduled_arrival_2,\n"
+"                    aircraft_code AS aircraft_code_2\n"
+"    FROM flights\n"
+"    NATURAL JOIN totalfree\n"
+"    WHERE departure_airport = ?\n"
+"      AND arrival_airport = ?\n"
+"      AND (scheduled_arrival - scheduled_departure) < '24:00:00'\n"
+"      AND scheduled_departure::date = ?\n"
+"      AND asientosvacios > 0\n"
+"),\n"
+
+/*
+ * flight_sec: Selecciona los vuelos con conexión.
+ * Se asegura que:
+ *   - la conexión se haga en el mismo aeropuerto,
+ *   - el segundo vuelo salga después del primero,
+ *   - ambos tengan asientos libres,
+ *   - y el viaje completo dure menos de 24 horas.
+ */
+"flight_sec AS (\n"
+"    SELECT DISTINCT f1.flight_id,\n"
+"                    f1.aircraft_code,\n"
+"                    1 AS conexion,\n"
+"                    f1.scheduled_departure,\n"
+"                    f2.scheduled_arrival,\n"
+"                    MIN(asientosvacios) AS asientosvacios,\n"
+"                    (f2.scheduled_arrival - f1.scheduled_departure) AS time_elapsed,\n"
+"                    f2.flight_id AS flight_id_2,\n"
+"                    f2.scheduled_departure AS scheduled_departure_2,\n"
+"                    f1.scheduled_arrival AS scheduled_arrival_2,\n"
+"                    f2.aircraft_code AS aircraft_code_2\n"
+"    FROM flights f1,\n"
+"         flights f2,\n"
+"         totalfree tf\n"
+"    WHERE f1.departure_airport = ?\n"
+"      AND f1.arrival_airport = f2.departure_airport\n"
+"      AND f2.arrival_airport = ?\n"
+"      AND f1.scheduled_arrival <= f2.scheduled_departure\n"
+"      AND (f2.scheduled_arrival - f1.scheduled_departure) < '24:00:00'\n"
+"      AND (f2.scheduled_arrival - f1.scheduled_departure) > '00:00:00'\n"
+"      AND f1.scheduled_departure::date = ?\n"
+"      AND (tf.flight_id = f1.flight_id OR tf.flight_id = f2.flight_id)\n"
+"      AND asientosvacios > 0\n"
+"    GROUP BY f1.flight_id, f1.scheduled_departure, f2.scheduled_arrival,\n"
+"             f2.flight_id, f2.scheduled_departure, f1.scheduled_arrival, f2.aircraft_code\n"
+"),\n"
+
+/*
+ * result: Une los vuelos directos y con conexión en una sola tabla
+ */
+"result AS (\n"
+"    SELECT DISTINCT * FROM flight_dir\n"
+"    UNION\n"
+"    SELECT DISTINCT * FROM flight_sec\n"
+")\n"
+
+/*
+ * Selección final: devuelve todos los resultados ordenados por duración
+ */
+"SELECT DISTINCT flight_id, aircraft_code, conexion, scheduled_departure,\n"
+"       scheduled_arrival, asientosvacios, time_elapsed, flight_id_2,\n"
+"       scheduled_departure_2, scheduled_arrival_2, aircraft_code_2\n"
+"FROM result\n"
+"ORDER BY time_elapsed;\n";
+
 
 /* Query B.Pass 1: Encontrar vuelos pendientes */
 char *sql_bpass_find_pending = "SELECT t.passenger_name,\n"
