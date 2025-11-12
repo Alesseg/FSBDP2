@@ -185,6 +185,7 @@ void write_msg(WINDOW *win, char *msg, int y, int x, char *title)
  * @param msg message
  * @param x message position (X)
  * @param y message position (Y)
+ * @param title pointer to the title of the box
  */
 {
     char title1[] = "Flight id(1): Aircraft code(1): Flight id(2): Aircraft code(2): Departure(1):        Arrival(1):          Departure(2):        Arrival(2):";
@@ -197,14 +198,21 @@ void write_msg(WINDOW *win, char *msg, int y, int x, char *title)
     /* since we cleared the box we need to repaint it */
     (void) box(win, 0, 0);
     (void) mvwaddstr(win, 0, 2, title); /* 124 la primera parte */
-    /* write message */
-    if(!strncmp(msg, title1, 138)) {
+    /* write message type 1 */
+    if(!strncmp(msg, title1, TITLE1)) {
+      /* Write title 1 */
       (void) mvwaddstr(win, 1, 2, title1);
-      (void) mvwaddstr(win, 2, 2, msg + 139);
-    } else if(!strncmp(msg, title2, 62)) {
+      /* Write data */
+      (void) mvwaddstr(win, 2, 2, msg + DATA1);
+    } 
+    /* Write message type 2 */
+    else if(!strncmp(msg, title2, TITLE2)) {
+      /* Write message title 2 */
       (void) mvwaddstr(win, 1, 2, title2);
-      (void) mvwaddstr(win, 2, 2, msg + 63);
+      /* Write data */
+      (void) mvwaddstr(win, 2, 2, msg + DATA2);
     } else {
+      /* Write message type 3 */
       (void) mvwaddstr(win, 1, 2, msg);
     }
     (void) wrefresh(win);

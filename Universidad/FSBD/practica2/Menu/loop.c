@@ -343,7 +343,7 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
       return;
     }
     for(i = 0; i < TOTAL_ROWS ; i++) {
-      if(!(msg_search[i] = (char *)malloc(sizeof(char) * (LENGTH_ROWS+1)))) {
+      if(!(msg_search[i] = (char *)malloc(sizeof(char) * (LENGTH_ROWS)))) {
         for(j = i; j >= 0 ;j--) {
           free(msg_search[j]);
         }
@@ -354,7 +354,7 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
       return;
     }
     for(i = 0; i < TOTAL_ROWS ; i++) {
-      if(!(result[i] = (char *)malloc(sizeof(char) * (LENGTH_ROWS+1)))) {
+      if(!(result[i] = (char *)malloc(sizeof(char) * (LENGTH_ROWS)))) {
         for(j = i; j >= 0 ;j--) {
           free(result[j]);
         }
@@ -476,8 +476,6 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 choice = item_index(auxItem);
                 enterKey = (bool) TRUE; /* mark enter pressed */
                 break;
-
-
             case KEY_NPAGE: /* next-page key */
               temp = start;
               start = MIN(start + (windows->rows_out_win)-2, TOTAL_ROWS - 1);
@@ -539,7 +537,6 @@ void loop(SQLHDBC dbc, _Windows *windows, _Menus *menus,
                 start = temp;
               }
               break;
-
             default: /* echo pressed key */
                 auxItem = current_item(menu);
                 if (item_index(auxItem) == SEARCH) {
