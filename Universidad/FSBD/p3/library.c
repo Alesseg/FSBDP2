@@ -143,15 +143,21 @@ short insertIndex(Index * index, int key, size_t size) {
 
   /* Search the position where the index must be inserted */
   long int pos = binarySearchPositionToInsert(index, index->used, key);
-  
+  /* Move the indexbook that are after the new indexbook */
+  for(int i = index->used; i > pos ; i--) {
+    index->index[i] = index->index[i - 1];
+    index->index[i].offset += size + sizeof(size_t);
+  }
+
   /* If is the first element the offset is 0, in the other cases we have to add the size of the offset */
   int offset = 0;
-  if(index->used)  {
-    offset = index->index[index->used - 1].offset + index->index[index->used - 1].size + sizeof(size_t);
+  if(pos)  {
+    offset = index->index[pos - 1].offset + index->index[pos - 1].size + sizeof(size_t);
   }
   /* Initialice the index of the record */
-  if(initIndexbook(&(index->index[index->used++]), key, offset, size) == ERR) return ERR;
-
+  if(initIndexbook(&(index->index[pos]), key, offset, size) == ERR) return ERR;
+  
+  index->used++;  
   return OK;
 }
 /**
