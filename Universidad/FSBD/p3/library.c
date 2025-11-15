@@ -7,6 +7,7 @@
 
 int main() {
   char input[MAX_LENGHT]; /* Tamaño a comprobar */
+  char filename[] = "test.db"; /* Nombre ficherov*/
   Index  * index = NULL;
 
   /* Print messages for test */
@@ -21,15 +22,22 @@ int main() {
 
   initIndex(index, INITSIZE_INDEX);
 
-  /* Gets the input */
+  /**
+   * Gets the input 
+   * Depending on the input (ej. add ...,find ...,exit\n)
+   *   it does one thing or another
+   * 
+  */
   while(fgets(input, MAX_LENGHT ,stdin) != NULL) {
-    /* Extract the information */
+    /* Extract the information (ej. 12346|978-2-12345086-3|La busca|Catedra\r)*/
     if(insertBookInfoIndex(input, index) == ERR) {
       printf("Nothing inserted\n");
     }
     printIndex(index);
   }
 
+  /* When the user exits, the index must be saved in the file and the memory must be freed */
+  indexToFile(filename, index);
   freeIndex(index);
   free(index);
 
@@ -54,15 +62,14 @@ short initIndexbook(Indexbook * index, int key, long int offset, size_t size) {
   index->size = size;
   return OK;
 }
-
-/*****************************************
- * Puede que se tenga que ampliar la fucnión 'getBookInfo'
- *  al implementar el interfaz de usuario y se
- *  tenga que obetenr la info del libre
- * 
-*/
 /**
  * @brief Get the Book Info from a char and insert it into the index
+ * @details Puede que se tenga que ampliar esta función
+ *  al implementar el interfaz de usuario y se tenga que obetener tmb la info del libro al completo
+ * 
+ *  ej. 12346|978-2-12345086-3|La busca|Catedra\r
+ *  bookID -> 12346, isbn -> 978-2-12345086, title -> La busca, editorial -> Catedra
+ *  This info is inserted intot the index
  * 
  * @param array pointer to the array
  * @param index pointer to the index
@@ -205,4 +212,66 @@ long int binarySearchPositionToInsert(Index * index, size_t n, int key) {
 
     return low;  // Position to insert
 }
+
+
+short indexFromFile(char * filename, Index * index) {
+  FILE * f = NULL;
+  char * bookID = NULL;
+  char * offset = NULL;
+  char * sizeChar = NULL;
+  int key = 0;
+  size_t size = 0;
+
+  /* Error control */
+  if(!filename || !index) return ERR;
+
+  /* Open file */
+  if(!(f = fopen(filename, "rb"))) return ERR;
+
+  /* Read file and insert data into index */
+  while(fread(bookID, sizeof(int), 1, f) > 0) {  
+    key = atoi(bookID);
+    fread(offset, sizeof(long int), 1, f);
+    fread(sizeChar, sizeof(size_t), 1, f);
+    size = atoi(sizeChar);
+    if(insertIndex(index, key, size) == ERR){
+      fclose(f);
+      return ERR;
+    }
+  }
+
+  fclose(f);
+  return OK;
+}
+
+short indexToFile(char * filename, Index * index) {
+  FILE * f = NULL;
+
+  /* Error control */
+  if(!filename || !index) return ERR;
+
+  /* Open file */
+  if(!(f = fopen(filename, "wb"))) return ERR;
+
+  for (size_t i = 0; i < index->used; i++)
+  {  
+    if(fwrite(&index->index[i].key, sizeof(int), 1, f) <= 0) {
+      fclose(f);
+      return ERR;
+    }
+    if(fwrite(&index->index[i].offset, sizeof(long int), 1, f) <= 0) {
+      fclose(f);
+      return ERR;
+    }
+    if(fwrite(&index->index[i].size, sizeof(size_t), 1, f) <= 0) {
+      fclose(f);
+      return ERR;
+    }
+  }
+
+  fclose(f);
+  return OK;
+}
+
+
 

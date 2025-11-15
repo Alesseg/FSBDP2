@@ -42,7 +42,9 @@ short insertIndex(Index * index, int key, size_t size);
 void freeIndex(Index * index);
 short insertBookInfoIndex(char * array, Index * index);
 void printIndex(Index * index);
-long int binarySearchPositionToInsert();
+long int binarySearchPositionToInsert(Index * index, size_t n, int key);
+short indexFromFile(char * filename, Index * index);
+short indexToFile(char * filename, Index * index);
 
 /**
  * @brief Strucutre of the records
