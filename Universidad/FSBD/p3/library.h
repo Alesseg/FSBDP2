@@ -19,17 +19,11 @@
 #define ERR -1 /* Error */
 
 /**
- * @brief Commands
- * 
- */
-typedef enum {ADD, FIND, DEL, EXIT, PRINTIND, PRINTLST, PRINTREC};
-
-/**
  * @brief Structure of the index of a record
  */
 typedef struct _Indexbook
 {
-  int key;  /* book isbn */
+  int key;  /* book id */
   long int offset;  /* book is stored in disk at this position */
   size_t size;  /* book record size. This is a redundant field that helps in the  implementation */
 } Indexbook;

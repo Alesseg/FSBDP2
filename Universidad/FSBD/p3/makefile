@@ -1,6 +1,7 @@
 CC = gcc -g
 CFLAGS = -Wall -Wextra -pedantic -std=c99
 
+FILENAME = "test"
 HEADERS = library.h
 EXE = library
 OBJ = $(EXE).o
@@ -18,10 +19,10 @@ $(EXE): $(DEPS) $(OBJ)
 	$(CC) -o $(EXE) $(OBJ) $(LDLIBS)
 
 clean:
-	rm -f *.o core $(EXE)
+	rm -f *.o core $(EXE) 
 
 run:
-	./$(EXE)
+	./$(EXE) worst_fit $(FILENAME)
 
 valgrind:
 	valgrind --leak-check=full ./$(EXE)

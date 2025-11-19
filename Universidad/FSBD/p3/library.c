@@ -7,63 +7,90 @@
 
 int main(int argc, char * argv[]) {
   char input[MAX_LENGHT];
-  int command = 0;
+  char * bookInfo = NULL;
+  char * strategy = NULL;
   Index  * index = NULL;
   
+  /* Check arguments */
+  if(argc < 2) {
+    printf("Missing argument\n");
+    return 0;
+  }
+  /* Get the strategy */
+  strategy = strtok(argv[1], " \r\n");
+  if(!strcmp(strategy, "best_fit")) 
+  {
+
+  } else if (!strcmp(strategy, "first_fit")) 
+  {
+
+  } else if (!strcmp(strategy, "worst_fit")) 
+  {
+
+  } else {
+    printf("Unknown search strategy unknown_search_strategy\n");
+    return 0;
+  }
+
+
+
   /* Print messages for test */
   printf("Type command and argument/s.\n");
   printf("exit\n");
   /* Allocate memory for the index */
   if(!(index = malloc(sizeof(Index)))) {
     printf("Error allocating memory for the index\n");
-    return 1;
+    return 0;
   }
 
   initIndex(index, INITSIZE_INDEX);
 
   /* main loop */
-  short status = OK, exit = 0;
+  short status = OK;
   while(1) {
     /* Get the input fron the terminal */
     fgets(input, MAX_LENGHT ,stdin);
     /* Extract the comand and information from the input */
-    switch (command)
+    char * command = NULL;
+    command = strtok(input, " \n\r");
+    bookInfo = strtok(NULL, "\n\r");
+    if(strcmp(command, "add") == 0)
     {
-    case ADD:
-      if(insertBookInfoIndex(input, index) == ERR) {
-        printf("Nothing inserted\n");
-      }
+      status = insertBookInfoIndex(bookInfo, index);
+    } else if (strcmp(command, "find") == 0) 
+    {
+    } else if (strcmp(command, "del") == 0) 
+    {
+    } else if (strcmp(command, "exit") == 0) 
+    {
       break;
-    case FIND:
-      break;
-    case DEL:
-      break;
-    case EXIT:
-      exit = 1;
-      break;
-    case PRINTIND:
-      break;
-    case PRINTLST:
-      break;
-    case PRINTREC:
-      break;
-    default:
-      printf("Error: Undefined input.\n");
-      break;
+    } else if (strcmp(command, "printInd") == 0) 
+    {
+      printIndex(index);
+    } else if (strcmp(command, "printLst") == 0) 
+    {
+    } else if (strcmp(command, "printRec") == 0) 
+    {
+    } else 
+    {
     }
-    if(exit || status == ERR) break;
+    if(status == ERR) break;
     printf("exit\n");
+    fflush(stdout);
   }
 
   /* When the user exits or there is an error, the index must be saved in the file and the memory must be freed */
   indexToFile(argv[POS_FILENAME], index);
   freeIndex(index);
   free(index);
-  printf("exit\n");
 
   return 0;
 }
 
+
+/**
+ * Functions for index 
+ */
 /**
  * @brief Initialice the indexbook of a record. This function does not allocates memory
  * 
@@ -114,9 +141,10 @@ short insertBookInfoIndex(char * array, Index * index) {
   edit = strtok(NULL, "\r");
 
   int key = atoi(bookID);
-  size_t size = strlen(bookID) + strlen(isbn) + strlen(title) + strlen(edit) - 1;
+  size_t size = strlen(bookID) + strlen(isbn) + strlen(title) + strlen(edit);
 
   insertIndex(index, key, size);
+  printf("Record with BookID=%d has been added to the database\n", key);
 
   return OK;
 }
@@ -201,6 +229,7 @@ void printIndex(Index * index) {
     printf("Entry #%d\n", i);
     printf("\tkey: #%d\n", index->index[i].key);
     printf("\toffset: #%ld\n", index->index[i].offset);
+    printf("\tsize: #%zu\n", index->index[i].size);
   }
 }
 /**
@@ -302,9 +331,6 @@ short indexToFile(char * filename, Index * index) {
   fclose(f);
   return OK;
 }
-
-
-
 
 
 
