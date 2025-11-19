@@ -5,12 +5,11 @@
 #include "library.h"
 
 
-int main(int argc, char argv[]) {
+int main(int argc, char * argv[]) {
   char input[MAX_LENGHT];
   int command = 0;
   Index  * index = NULL;
   
-
   /* Print messages for test */
   printf("Type command and argument/s.\n");
   printf("exit\n");
@@ -22,12 +21,7 @@ int main(int argc, char argv[]) {
 
   initIndex(index, INITSIZE_INDEX);
 
-  /**
-   * Gets the input 
-   * Depending on the input (ej. add ...,find ...,exit\n)
-   *   it does one thing or another
-   * 
-  */
+  /* main loop */
   short status = OK, exit = 0;
   while(1) {
     /* Get the input fron the terminal */
@@ -61,7 +55,7 @@ int main(int argc, char argv[]) {
     printf("exit\n");
   }
 
-  /* When the user exits, the index must be saved in the file and the memory must be freed */
+  /* When the user exits or there is an error, the index must be saved in the file and the memory must be freed */
   indexToFile(argv[POS_FILENAME], index);
   freeIndex(index);
   free(index);
