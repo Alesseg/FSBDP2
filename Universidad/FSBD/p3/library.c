@@ -5,15 +5,15 @@
 #include "library.h"
 
 
-int main() {
-  char input[MAX_LENGHT]; /* Tamaño a comprobar */
-  char filename[] = "test.db"; /* Nombre ficherov*/
+int main(int argc, char argv[]) {
+  char input[MAX_LENGHT];
+  int command = 0;
   Index  * index = NULL;
+  
 
   /* Print messages for test */
   printf("Type command and argument/s.\n");
   printf("exit\n");
-
   /* Allocate memory for the index */
   if(!(index = malloc(sizeof(Index)))) {
     printf("Error allocating memory for the index\n");
@@ -28,18 +28,44 @@ int main() {
    *   it does one thing or another
    * 
   */
-  while(fgets(input, MAX_LENGHT ,stdin) != NULL) {
-    /* Extract the information (ej. 12346|978-2-12345086-3|La busca|Catedra\r)*/
-    if(insertBookInfoIndex(input, index) == ERR) {
-      printf("Nothing inserted\n");
+  short status = OK, exit = 0;
+  while(1) {
+    /* Get the input fron the terminal */
+    fgets(input, MAX_LENGHT ,stdin);
+    /* Extract the comand and information from the input */
+    switch (command)
+    {
+    case ADD:
+      if(insertBookInfoIndex(input, index) == ERR) {
+        printf("Nothing inserted\n");
+      }
+      break;
+    case FIND:
+      break;
+    case DEL:
+      break;
+    case EXIT:
+      exit = 1;
+      break;
+    case PRINTIND:
+      break;
+    case PRINTLST:
+      break;
+    case PRINTREC:
+      break;
+    default:
+      printf("Error: Undefined input.\n");
+      break;
     }
-    printIndex(index);
+    if(exit || status == ERR) break;
+    printf("exit\n");
   }
 
   /* When the user exits, the index must be saved in the file and the memory must be freed */
-  indexToFile(filename, index);
+  indexToFile(argv[POS_FILENAME], index);
   freeIndex(index);
   free(index);
+  printf("exit\n");
 
   return 0;
 }
@@ -183,7 +209,6 @@ void printIndex(Index * index) {
     printf("\toffset: #%ld\n", index->index[i].offset);
   }
 }
-
 /**
  * @brief Search the position where the new index must be inserted
  * 
@@ -212,28 +237,31 @@ long int binarySearchPositionToInsert(Index * index, size_t n, int key) {
 
     return low;  // Position to insert
 }
-
-
+/**
+ * @brief Insert into an index the data from a file
+ * 
+ * @param filename pointer to the name of the file
+ * @param index pointer to the index
+ * @return OK, or ERR in case of error
+ */
 short indexFromFile(char * filename, Index * index) {
   FILE * f = NULL;
-  char * bookID = NULL;
-  char * offset = NULL;
-  char * sizeChar = NULL;
+  long int offset = 0;
   int key = 0;
   size_t size = 0;
+  char filenameIndex[LENGHT_FILE];
 
   /* Error control */
   if(!filename || !index) return ERR;
 
   /* Open file */
-  if(!(f = fopen(filename, "rb"))) return ERR;
+  sprintf(filenameIndex, "%s.ind", filename);
+  if(!(f = fopen(filenameIndex, "rb"))) return ERR;
 
   /* Read file and insert data into index */
-  while(fread(bookID, sizeof(int), 1, f) > 0) {  
-    key = atoi(bookID);
-    fread(offset, sizeof(long int), 1, f);
-    fread(sizeChar, sizeof(size_t), 1, f);
-    size = atoi(sizeChar);
+  while(fread(&key, sizeof(int), 1, f) > 0) {  
+    fread(&offset, sizeof(long int), 1, f);
+    fread(&size, sizeof(size_t), 1, f);
     if(insertIndex(index, key, size) == ERR){
       fclose(f);
       return ERR;
@@ -243,15 +271,23 @@ short indexFromFile(char * filename, Index * index) {
   fclose(f);
   return OK;
 }
-
+/**
+ * @brief Write the data from the index in a file
+ * 
+ * @param filename pointer to the name of the file
+ * @param index pointer to the index
+ * @return OK, or ERR in case of error
+ */
 short indexToFile(char * filename, Index * index) {
   FILE * f = NULL;
+  char filenameIndex[LENGHT_FILE];
 
   /* Error control */
   if(!filename || !index) return ERR;
 
   /* Open file */
-  if(!(f = fopen(filename, "wb"))) return ERR;
+  sprintf(filenameIndex, "%s.ind", filename);
+  if(!(f = fopen(filenameIndex, "rb"))) return ERR;
 
   for (size_t i = 0; i < index->used; i++)
   {  
@@ -272,6 +308,15 @@ short indexToFile(char * filename, Index * index) {
   fclose(f);
   return OK;
 }
+
+
+
+
+
+
+
+
+
 
 
 

@@ -8,12 +8,21 @@
 #define MAX_LENGHT_VAR 128 /* Max lenght of the variable part */
 #define LENGHT_BOOKID 5 /* Number of characters of the bookid */
 #define LENGHT_ISBN 16 /* Number of characters of the isbn */
+#define LENGHT_FILE 64 /* Lenght of the name of the file */
+#define POS_FILENAME 2 /* Position of the filename on the input */
+#define LENGHT_CODE 16 /* Lenght of the code (ej. add, find, ...) */
 
 #define FACTOR_MULT 2 /* realloc factor */
 #define INITSIZE_INDEX 20 /* inital size of the index */
 
 #define OK 0 /* Correct output */
 #define ERR -1 /* Error */
+
+/**
+ * @brief Commands
+ * 
+ */
+typedef enum {ADD, FIND, DEL, EXIT, PRINTIND, PRINTLST, PRINTREC};
 
 /**
  * @brief Structure of the index of a record
