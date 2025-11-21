@@ -48,12 +48,15 @@ int main(int argc, char * argv[]) {
   /* main loop */
   short status = OK;
   while(1) {
+    
     /* Get the input fron the terminal */
     fgets(input, MAX_LENGHT ,stdin);
-    /* Extract the comand and information from the input */
+    
+    /* Extract the command and information from the input */
     char * command = NULL;
     command = strtok(input, " \n\r");
     bookInfo = strtok(NULL, "\n\r");
+
     if(strcmp(command, "add") == 0)
     {
       status = insertBookInfoIndex(bookInfo, index);
@@ -230,9 +233,9 @@ void printIndex(Index * index) {
   }
   for(int i = 0; i < (int)index->used ;i++) {
     printf("Entry #%d\n", i);
-    printf("\tkey: #%d\n", index->index[i].key);
-    printf("\toffset: #%ld\n", index->index[i].offset);
-    printf("\tsize: #%zu\n", index->index[i].size);
+    printf("    key: #%d\n", index->index[i].key);
+    printf("    offset: #%ld\n", index->index[i].offset);
+    //printf("    size: #%zu\n", index->index[i].size);
   }
 }
 /**
