@@ -74,7 +74,10 @@ int main(int argc, char * argv[]) {
     } else 
     {
     }
-    if(status == ERR) break;
+    if(status == ERR) {
+      printf("Error\n");
+      break;
+    }
     printf("exit\n");
     fflush(stdout);
   }
