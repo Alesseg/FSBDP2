@@ -59,7 +59,7 @@ int main(int argc, char * argv[]) {
 
     if(strcmp(command, "add") == 0)
     {
-      status = insertBookInfoIndex(bookInfo, index);
+      status = insertBookInfo(bookInfo, index, argv[2]);
     } else if (strcmp(command, "find") == 0) 
     {
     } else if (strcmp(command, "del") == 0) 
@@ -126,17 +126,25 @@ short initIndexbook(Indexbook * index, int key, long int offset, size_t size) {
  * 
  * @param array pointer to the array
  * @param index pointer to the index
+ * @param filename filename (without extension) for saveing data
  * @return OK, or ERR in case of error
  */
-short insertBookInfoIndex(char * array, Index * index) {
-  /* Error control */
-  if(!array || !index) return ERR;
-
+short insertBookInfo(char * array, Index * index, char *filename) {
   char * bookID;
   char * isbn;
   char * title;
   char * edit;
+  int key;
+  long int offset = 0;
+  size_t size;
+  short ret;
+  char db_name[LENGHT_FILE];
+  FILE * f = NULL;
   
+  /* Error control */
+  if(!array || !index || !filename) return ERR;
+
+
   /* Gets the book id */
   bookID = strtok(array, "|");
   /* Gets the book id */
@@ -144,18 +152,24 @@ short insertBookInfoIndex(char * array, Index * index) {
   /* Gets the book id */
   title = strtok(NULL, "|");
   /* Gets the book id */
-  edit = strtok(NULL, "\r");
+  edit = strtok(NULL, "\r\n");
 
-  int key = atoi(bookID);
-  size_t size = strlen(bookID) + strlen(isbn) + strlen(title) + strlen(edit);
+  /*checking for error with strtok*/
+  if (!bookID || !isbn || !title || !edit) return ERR;
+  
+  key = atoi(bookID);
+  size = strlen(bookID) + strlen(isbn) + strlen(title) + strlen(edit);
 
   /* Search the position where the index must be inserted */
-  long int pos = binarySearchPositionToInsert(index, index->used, key);
+  long pos = binarySearchPositionToInsert(index, index->used, key);
   /* Check if the book is already in the index */
   if(index->index[pos].key == key) {
     printf("Record with BookID=%d is already in the database\n", key);
   } else {
-    insertIndex(index, pos, key, size);
+    ret = insertIndex(index, pos, key, size, offset);
+    if (ret == ERR) return ERR;
+    ret = saveBookToFile(filename, key, isbn, title, edit, &offset, &size);
+    if (ret == ERR) return ERR;
     printf("Record with BookID=%d has been added to the database\n", key);
   }
 
@@ -199,15 +213,9 @@ void freeIndex(Index * index) {
  * @param size size of the indexbook
  * @return OK, or ERR in case of error
  */
-short insertIndex(Index * index, long int pos, int key, size_t size) {
-  /** Cuando esté implementado el registro hay que: 
-   * - Pasar el offset del registro como entraga en esta función
-   * - Utilizar memove
-   */
-  
-  
+short insertIndex(Index * index, long pos, int key, size_t size, long int offset) {
   /* Error control */
-  if(!index || pos < 0 || key < 0 || size <= 0) return ERR;
+  if(!index || key < 0 || size <= 0 || offset < 0) return ERR;
 
   /* If there is no space, add more */
   if(index->used == index->size) {
@@ -218,14 +226,8 @@ short insertIndex(Index * index, long int pos, int key, size_t size) {
   /* Move the indexbook that are after the new indexbook */
   for(int i = index->used; i > pos ; i--) {
     index->index[i] = index->index[i - 1];
-    index->index[i].offset += size + sizeof(size_t);
   }
 
-  /* If is the first element the offset is 0, in the other cases we have to add the size of the offset */
-  int offset = 0;
-  if(pos)  {
-    offset = index->index[pos - 1].offset + index->index[pos - 1].size + sizeof(size_t);
-  }
   /* Initialice the index of the record */
   if(initIndexbook(&(index->index[pos]), key, offset, size) == ERR) return ERR;
   
@@ -290,6 +292,7 @@ short indexFromFile(char * filename, Index * index) {
   int key = 0;
   size_t size = 0;
   char filenameIndex[LENGHT_FILE];
+  long i = 0;
 
   /* Error control */
   if(!filename || !index) return ERR;
@@ -299,13 +302,15 @@ short indexFromFile(char * filename, Index * index) {
   if(!(f = fopen(filenameIndex, "rb"))) return ERR;
 
   /* Read file and insert data into index */
+  i = 0;
   while(fread(&key, sizeof(int), 1, f) > 0) {  
     fread(&offset, sizeof(long int), 1, f);
     fread(&size, sizeof(size_t), 1, f);
-    if(insertIndex(index, key, size) == ERR){
+    if(insertIndex(index, i, key, size, offset) == ERR){
       fclose(f);
       return ERR;
     }
+    i++;
   }
 
   fclose(f);
@@ -348,12 +353,47 @@ short indexToFile(char * filename, Index * index) {
   fclose(f);
   return OK;
 }
+/**
+ * @brief Escribe un registro de libro al final del fichero de datos (.db)
+ * * Formato en disco:
+ * [size_t total_size] [int bookID] [char isbn[16]] [Title] [|] [Editorial]
+ * @param filename Nombre base del fichero (sin extension)
+ * @param bookID ID del libro
+ * @param isbn ISBN string
+ * @param title Titulo string
+ * @param editorial Editorial string
+ * @param offset (SALIDA) Donde empieza el registro (para el índice)
+ * @param size (SALIDA) Tamaño del registro (para el índice)
+ * @return OK o ERR
+ */
+short saveBookToFile(char * filename, int bookID, char * isbn, char * title, char * editorial, long int * offset, size_t * size) {
+  FILE *f;
+  char db_name[LENGHT_FILE];
+  size_t title_len, editor_len, record_size;
+  char separator = '|';
 
+  /*Error control*/
+  if (!filename || !isbn || !title || !editor_len) return ERR;
 
+  /*Open file*/
+  sprintf(db_name, "%s.db", filename);
+  if (!(f = fopen(db_name, "ab"))) return ERR;
+  
+  /*save the last offset in the pointer*/
+  fseek(f, 0, SEEK_END);
+  *offset = ftell(f);
 
+  title_len = strlen(title);
+  editor_len = strlen(editorial);
+  record_size = sizeof(int) + LENGHT_ISBN + title_len + 1 + editor_len;
+  *size = record_size;
 
-
-
-
-
-
+  fwrite(&record_size, sizeof(size_t), 1 , f);
+  fwrite(isbn, 1, LENGHT_ISBN, f);
+  fwrite(title, 1, title_len, f);
+  fwrite(&separator, 1, 1, f);
+  fwrite(editorial, 1, editor_len, f);
+  
+  fclose(f);
+  return OK;
+}

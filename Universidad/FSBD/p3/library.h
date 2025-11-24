@@ -43,11 +43,12 @@ typedef struct _Index
 void initIndex(Index * index, size_t initSize);
 short insertIndex(Index * index, long int pos, int key, size_t size);
 void freeIndex(Index * index);
-short insertBookInfoIndex(char * array, Index * index);
+short insertBookInfoIndex(char * array, Index * index, char * filename);
 void printIndex(Index * index);
 long int binarySearchPositionToInsert(Index * index, size_t n, int key);
 short indexFromFile(char * filename, Index * index);
 short indexToFile(char * filename, Index * index);
+short saveBookToFile(char * filename, int bookID, char * isbn, char * title, char * editorial, long int * offset, size_t * size);
 
 /**
  * @brief Strucutre of the records
