@@ -77,6 +77,9 @@ int main(int argc, char * argv[]) {
     {
     } else if (strcmp(command, "printRec") == 0) 
     {
+    } else if (strcmp(command, "printRec") == 0) 
+    {
+      printRec(index, argv[2]);
     } else 
     {
     }
@@ -404,4 +407,54 @@ short saveBookToFile(char * filename, int bookID, char * isbn, char * title, cha
   
   fclose(f);
   return OK;
+}
+
+
+void printRec(Index * index, char * filename) {
+    FILE * f = NULL;
+    char db_name[LENGHT_FILE];
+    int bookID;
+    char isbn[LENGHT_ISBN + 1]; 
+    char buffer[MAX_LENGHT_VAR]; 
+    char * title;
+    char * editorial;
+    size_t var_len;
+
+    if (!index || !filename) return;
+
+    sprintf(db_name, "%s.db", filename);
+    if (!(f = fopen(db_name, "rb"))) {
+        printf("Error opening database file\n");
+        return;
+    }
+
+    for (size_t i = 0; i < index->used; i++) {
+        
+        fseek(f, index->index[i].offset + sizeof(size_t), SEEK_SET);
+
+        fread(&bookID, sizeof(int), 1, f);
+        fread(isbn, LENGHT_ISBN, 1, f);
+        isbn[LENGHT_ISBN] = '\0'; 
+
+        var_len = index->index[i].size - sizeof(int) - LENGHT_ISBN;
+
+        if (var_len > 0 && var_len < MAX_LENGHT_VAR) {
+            fread(buffer, 1, var_len, f);
+            buffer[var_len] = '\0'; 
+
+            title = buffer;
+            editorial = strchr(buffer, '|');
+            
+            if (editorial) {
+                *editorial = '\0'; 
+                editorial++;       
+            } else {
+                editorial = "";   
+            }
+
+            printf("%d %s %s %s\n", bookID, isbn, title, editorial);
+        }
+    }
+
+    fclose(f);
 }
