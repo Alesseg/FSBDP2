@@ -149,8 +149,15 @@ short insertBookInfoIndex(char * array, Index * index) {
   int key = atoi(bookID);
   size_t size = strlen(bookID) + strlen(isbn) + strlen(title) + strlen(edit);
 
-  insertIndex(index, key, size);
-  printf("Record with BookID=%d has been added to the database\n", key);
+  /* Search the position where the index must be inserted */
+  long int pos = binarySearchPositionToInsert(index, index->used, key);
+  /* Check if the book is already in the index */
+  if(index->index[pos].key == key) {
+    printf("Record with BookID=%d is already in the database\n", key);
+  } else {
+    insertIndex(index, pos, key, size);
+    printf("Record with BookID=%d has been added to the database\n", key);
+  }
 
   return OK;
 }
@@ -192,9 +199,15 @@ void freeIndex(Index * index) {
  * @param size size of the indexbook
  * @return OK, or ERR in case of error
  */
-short insertIndex(Index * index, int key, size_t size) {
+short insertIndex(Index * index, long int pos, int key, size_t size) {
+  /** Cuando esté implementado el registro hay que: 
+   * - Pasar el offset del registro como entraga en esta función
+   * - Utilizar memove
+   */
+  
+  
   /* Error control */
-  if(!index || key < 0 || size <= 0) return ERR;
+  if(!index || pos < 0 || key < 0 || size <= 0) return ERR;
 
   /* If there is no space, add more */
   if(index->used == index->size) {
@@ -202,8 +215,6 @@ short insertIndex(Index * index, int key, size_t size) {
     if(!(index->index = realloc(index->index, index->size * sizeof(Indexbook)))) return ERR;
   }
 
-  /* Search the position where the index must be inserted */
-  long int pos = binarySearchPositionToInsert(index, index->used, key);
   /* Move the indexbook that are after the new indexbook */
   for(int i = index->used; i > pos ; i--) {
     index->index[i] = index->index[i - 1];
@@ -235,7 +246,7 @@ void printIndex(Index * index) {
     printf("Entry #%d\n", i);
     printf("    key: #%d\n", index->index[i].key);
     printf("    offset: #%ld\n", index->index[i].offset);
-    //printf("    size: #%zu\n", index->index[i].size);
+    printf("    size: #%zu\n", index->index[i].size);
   }
 }
 /**
@@ -316,7 +327,7 @@ short indexToFile(char * filename, Index * index) {
 
   /* Open file */
   sprintf(filenameIndex, "%s.ind", filename);
-  if(!(f = fopen(filenameIndex, "rb"))) return ERR;
+  if(!(f = fopen(filenameIndex, "wb"))) return ERR;
 
   for (size_t i = 0; i < index->used; i++)
   {  

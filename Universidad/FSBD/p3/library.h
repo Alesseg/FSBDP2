@@ -41,7 +41,7 @@ typedef struct _Index
 } Index;
 
 void initIndex(Index * index, size_t initSize);
-short insertIndex(Index * index, int key, size_t size);
+short insertIndex(Index * index, long int pos, int key, size_t size);
 void freeIndex(Index * index);
 short insertBookInfoIndex(char * array, Index * index);
 void printIndex(Index * index);
