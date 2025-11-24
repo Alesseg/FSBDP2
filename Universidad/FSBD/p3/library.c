@@ -45,6 +45,9 @@ int main(int argc, char * argv[]) {
 
   initIndex(index, INITSIZE_INDEX);
 
+  /* Load index */
+  indexFromFile(argv[2], index);
+
   /* main loop */
   short status = OK;
   while(1) {
@@ -135,11 +138,11 @@ short insertBookInfo(char * array, Index * index, char *filename) {
   char * title;
   char * edit;
   int key;
-  long int offset;
-  size_t size;
-  short ret;
+  long int offset = 0;
+  size_t size, pos;
   char db_name[LENGHT_FILE];
   FILE * f = NULL;
+  short ret;
   
   /* Error control */
   if(!array || !index || !filename) return ERR;
@@ -168,9 +171,9 @@ short insertBookInfo(char * array, Index * index, char *filename) {
   fclose(f); /* Close the file */
 
   /* Search the position where the index must be inserted */
-  long pos = binarySearchPositionToInsert(index, index->used, key);
+  pos = binarySearchPositionToInsert(index, index->used, key);
   /* Check if the book is already in the index */
-  if(index->index[pos].key == key) {
+  if(pos < index->used && index->index[pos].key == key) {
     printf("Record with BookID=%d is already in the database\n", key);
   } else {
     ret = insertIndex(index, pos, key, size, offset);
@@ -220,19 +223,21 @@ void freeIndex(Index * index) {
  * @param size size of the indexbook
  * @return OK, or ERR in case of error
  */
-short insertIndex(Index * index, long pos, int key, size_t size, long int offset) {
+short insertIndex(Index * index, size_t pos, int key, size_t size, long int offset) {
+  Indexbook *aux = NULL;
   /* Error control */
   if(!index || key < 0 || size <= 0 || offset < 0) return ERR;
 
   /* If there is no space, add more */
   if(index->used == index->size) {
     index->size *= FACTOR_MULT;
-    if(!(index->index = realloc(index->index, index->size * sizeof(Indexbook)))) return ERR;
+    aux = realloc(index->index, index->size * sizeof(Indexbook));
+    if(!aux) return ERR;
+    index->index = aux;
   }
 
-  /* Move the indexbook that are after the new indexbook */
-  for(int i = index->used; i > pos ; i--) {
-    index->index[i] = index->index[i - 1];
+  if (pos < index->used) {
+    memmove(&index->index[pos + 1], &index->index[pos], (index->used - pos)*sizeof(Indexbook));
   }
 
   /* Initialice the index of the record */
@@ -266,25 +271,26 @@ void printIndex(Index * index) {
  * @param key bookID of the new index
  * @return Position where the index must be inserted.
  */
-long int binarySearchPositionToInsert(Index * index, size_t n, int key) {
-    int low = 0;
-    int high = n - 1;
+size_t binarySearchPositionToInsert(Index * index, size_t n, int key) {
+  long low = 0;
+  long high = n - 1;
+  long mid;
 
-    while (low <= high) {
-        int mid = low + (high - low) / 2;  // avoid overflow
+  while (low <= high) {
+    mid = low + (high - low) / 2;  /* avoid overflow*/
 
-        if (index->index[mid].key == key) {
-            return mid;           // key found at index mid
-        }
-        else if (index->index[mid].key < key) {
-            low = mid + 1;        // search in right half
-        }
-        else {
-            high = mid - 1;       // search in left half
-        }
+    if (index->index[mid].key == key) {
+      return (size_t)mid;           /* key found at index mid*/
     }
+    else if (index->index[mid].key < key) {
+      low = mid + 1;        /* search in right half*/
+    }
+    else {
+      high = mid - 1;       /* search in left half*/
+    }
+  }
 
-    return low;  // Position to insert
+  return (size_t)low;  // Position to insert
 }
 /**
  * @brief Insert into an index the data from a file
@@ -376,11 +382,11 @@ short indexToFile(char * filename, Index * index) {
 short saveBookToFile(char * filename, int bookID, char * isbn, char * title, char * editorial, size_t size) {
   FILE *f;
   char db_name[LENGHT_FILE];
-  size_t title_len, editor_len, record_size;
+  size_t title_len, editor_len;
   char separator = '|';
 
   /*Error control*/
-  if (!filename || !isbn || !title || !editor_len) return ERR;
+  if (!filename || !isbn || !title || !editorial) return ERR;
 
   /*Open file*/
   sprintf(db_name, "%s.db", filename);
