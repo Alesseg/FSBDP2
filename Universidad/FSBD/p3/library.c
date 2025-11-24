@@ -135,7 +135,7 @@ short insertBookInfo(char * array, Index * index, char *filename) {
   char * title;
   char * edit;
   int key;
-  long int offset = 0;
+  long int offset;
   size_t size;
   short ret;
   char db_name[LENGHT_FILE];
@@ -159,6 +159,13 @@ short insertBookInfo(char * array, Index * index, char *filename) {
   
   key = atoi(bookID);
   size = strlen(bookID) + strlen(isbn) + strlen(title) + strlen(edit);
+  
+  sprintf(db_name, "%s.db", filename); /* Open file */
+  if (!(f = fopen(db_name, "ab"))) return ERR;
+  /* Get the last offset */
+  fseek(f, 0, SEEK_END);
+  offset = (long int)ftell(f);
+  fclose(f); /* Close the file */
 
   /* Search the position where the index must be inserted */
   long pos = binarySearchPositionToInsert(index, index->used, key);
@@ -168,7 +175,7 @@ short insertBookInfo(char * array, Index * index, char *filename) {
   } else {
     ret = insertIndex(index, pos, key, size, offset);
     if (ret == ERR) return ERR;
-    ret = saveBookToFile(filename, key, isbn, title, edit, &offset, &size);
+    ret = saveBookToFile(filename, key, isbn, title, edit, size);
     if (ret == ERR) return ERR;
     printf("Record with BookID=%d has been added to the database\n", key);
   }
@@ -366,7 +373,7 @@ short indexToFile(char * filename, Index * index) {
  * @param size (SALIDA) Tamaño del registro (para el índice)
  * @return OK o ERR
  */
-short saveBookToFile(char * filename, int bookID, char * isbn, char * title, char * editorial, long int * offset, size_t * size) {
+short saveBookToFile(char * filename, int bookID, char * isbn, char * title, char * editorial, size_t size) {
   FILE *f;
   char db_name[LENGHT_FILE];
   size_t title_len, editor_len, record_size;
@@ -378,21 +385,16 @@ short saveBookToFile(char * filename, int bookID, char * isbn, char * title, cha
   /*Open file*/
   sprintf(db_name, "%s.db", filename);
   if (!(f = fopen(db_name, "ab"))) return ERR;
-  
-  /*save the last offset in the pointer*/
-  fseek(f, 0, SEEK_END);
-  *offset = ftell(f);
 
   title_len = strlen(title);
   editor_len = strlen(editorial);
-  record_size = sizeof(int) + LENGHT_ISBN + title_len + 1 + editor_len;
-  *size = record_size;
 
-  fwrite(&record_size, sizeof(size_t), 1 , f);
-  fwrite(isbn, 1, LENGHT_ISBN, f);
-  fwrite(title, 1, title_len, f);
+  fwrite(&size, sizeof(size_t), 1 , f);
+  fwrite(&bookID, sizeof(int), 1, f);
+  fwrite(isbn, LENGHT_ISBN, 1, f);
+  fwrite(title, title_len, 1, f);
   fwrite(&separator, 1, 1, f);
-  fwrite(editorial, 1, editor_len, f);
+  fwrite(editorial, editor_len, 1, f);
   
   fclose(f);
   return OK;

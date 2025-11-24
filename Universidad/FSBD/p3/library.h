@@ -48,7 +48,7 @@ void printIndex(Index * index);
 long int binarySearchPositionToInsert(Index * index, size_t n, int key);
 short indexFromFile(char * filename, Index * index);
 short indexToFile(char * filename, Index * index);
-short saveBookToFile(char * filename, int bookID, char * isbn, char * title, char * editorial, long int * offset, size_t * size);
+short saveBookToFile(char * filename, int bookID, char * isbn, char * title, char * editorial, size_t size);
 
 /**
  * @brief Strucutre of the records
